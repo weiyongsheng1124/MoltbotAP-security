@@ -21,12 +21,20 @@
 | BleepingComputer | bleepingcomputer.com | 英文 |
 | The Hacker News | thehackernews.com | 英文 |
 | SecurityWeek | securityweek.com | 英文 |
+| Krebs on Security | krebsonsecurity.com | 英文 |
+| Dark Reading | darkreading.com | 英文 |
+| Threatpost | threatpost.com | 英文 |
 
 ### 中文
 | 名稱 | 網站 | 語言 |
 |------|------|------|
 | iThome | ithome.com.tw | 繁體中文 |
-| iThome 資安 | ithome.com.tw/category/security | 繁體中文 |
+| T 客邦 | techbang.com | 繁體中文 |
+
+### 漏洞通報
+| 名稱 | 來源 | 格式 |
+|------|------|------|
+| CISA KEV | CISA JSON Feed | JSON |
 
 ---
 
@@ -92,6 +100,26 @@ security-news/
 - **cheerio** - HTML 解析
 - **node-cron** - 排程任務
 - **node-telegram-bot-api** - Telegram 通知
+
+---
+
+## 🔐 CISA 漏洞通報整合
+
+### 資料來源
+- URL: `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`
+- 格式：JSON
+- 更新頻率：CISA 持續更新
+
+### 輸出格式
+- 每天自動發送最新 5 個 CVE 漏洞
+- 包含： CVE ID、廠商/產品、漏洞名稱、发布日期、詳細資料連結
+
+### 程式碼結構
+```javascript
+// fetchCVEs() - 抓取 CISA JSON
+// formatCVEMessage() - 格式化 CVE 訊息
+// sendTelegramCVEs() - 發送 CVE 通知
+```
 
 ---
 
