@@ -3,8 +3,8 @@ const cheerio = require('cheerio');
 const cron = require('node-cron');
 const TelegramBot = require('node-telegram-bot-api');
 
-// 設定台灣時區
-process.env.TZ = 'Asia/Taipei';
+// 設定美國時區
+process.env.TZ = 'America/New_York';
 
 // 初始化 Telegram Bot
 let telegramBot = null;
@@ -32,21 +32,57 @@ initTelegramBot();
 const NEWS_SOURCES = [
     // 英文來源
     {
+        name: 'Dark Reading',
+        url: 'https://www.darkreading.com/',
+        selector: '.dr-article-card',
+        titleSelector: 'a.dr-article-card__title',
+        linkSelector: 'a.dr-article-card__title',
+        extract: ($, element) => ({
+            title: $(element).text().trim(),
+            url: 'https://www.darkreading.com' + $(element).attr('href'),
+            source: 'Dark Reading'
+        })
+    },
+    {
+        name: 'Krebs on Security',
+        url: 'https://krebsonsecurity.com/',
+        selector: '.post',
+        titleSelector: 'h2 a',
+        linkSelector: 'h2 a',
+        extract: ($, element) => ({
+            title: $(element).find('h2 a').text().trim(),
+            url: $(element).find('h2 a').attr('href'),
+            source: 'Krebs on Security'
+        })
+    },
+    {
+        name: 'Threatpost',
+        url: 'https://threatpost.com/',
+        selector: '.article-card',
+        titleSelector: 'h3 a',
+        linkSelector: 'h3 a',
+        extract: ($, element) => ({
+            title: $(element).find('h3 a').text().trim(),
+            url: $(element).find('h3 a').attr('href'),
+            source: 'Threatpost'
+        })
+    },
+    {
         name: 'BleepingComputer',
         url: 'https://www.bleepingcomputer.com/',
-        selector: '.news-listing .news-summary',
-        titleSelector: 'a.news-link',
-        linkSelector: 'a.news-link',
+        selector: '.bc_latest_news .news_li',
+        titleSelector: 'a',
+        linkSelector: 'a',
         extract: ($, element) => ({
-            title: $(element).find('a.news-link').text().trim(),
-            url: 'https://www.bleepingcomputer.com' + $(element).find('a.news-link').attr('href'),
+            title: $(element).find('a').text().trim(),
+            url: 'https://www.bleepingcomputer.com' + $(element).find('a').attr('href'),
             source: 'BleepingComputer'
         })
     },
     {
         name: 'The Hacker News',
         url: 'https://thehackernews.com/',
-        selector: '.story-list .story',
+        selector: '.home-post',
         titleSelector: 'h2.title a',
         linkSelector: 'h2.title a',
         extract: ($, element) => ({
@@ -58,13 +94,37 @@ const NEWS_SOURCES = [
     {
         name: 'SecurityWeek',
         url: 'https://www.securityweek.com/',
-        selector: '.views-row',
+        selector: '.view-content .views-row',
         titleSelector: 'h2 a',
         linkSelector: 'h2 a',
         extract: ($, element) => ({
             title: $(element).find('h2 a').text().trim(),
             url: $(element).find('h2 a').attr('href'),
             source: 'SecurityWeek'
+        })
+    },
+    {
+        name: 'CSO Online',
+        url: 'https://www.csoonline.com/news/security/',
+        selector: '.river-well .card',
+        titleSelector: 'a',
+        linkSelector: 'a',
+        extract: ($, element) => ({
+            title: $(element).find('a').attr('title') || $(element).find('a').text().trim(),
+            url: $(element).find('a').attr('href'),
+            source: 'CSO Online'
+        })
+    },
+    {
+        name: 'ZDNet',
+        url: 'https://www.zdnet.com/topic/security/',
+        selector: '.topic-content .item',
+        titleSelector: 'h3 a',
+        linkSelector: 'h3 a',
+        extract: ($, element) => ({
+            title: $(element).find('h3 a').text().trim(),
+            url: $(element).find('h3 a').attr('href'),
+            source: 'ZDNet'
         })
     },
     // 中文來源
@@ -81,7 +141,7 @@ const NEWS_SOURCES = [
         })
     },
     {
-        name: '資安趨勢',
+        name: 'iThome 資安',
         url: 'https://www.ithome.com.tw/category/security',
         selector: '.news-list .news-item',
         titleSelector: 'h3 a',
@@ -91,6 +151,30 @@ const NEWS_SOURCES = [
             url: 'https://www.ithome.com.tw' + $(element).find('h3 a').attr('href'),
             source: 'iThome 資安'
         })
+    },
+    {
+        name: 'T 客邦',
+        url: 'https://www.techbang.com/categories/security',
+        selector: '.main-list .post',
+        titleSelector: 'h2 a',
+        linkSelector: 'h2 a',
+        extract: ($, element) => ({
+            title: $(element).find('h2 a').text().trim(),
+            url: $(element).find('h2 a').attr('href'),
+            source: 'T 客邦'
+        })
+    },
+    {
+        name: '癮科技',
+        url: 'https://www.cool3c.com/category/security',
+        selector: '.article-list .article',
+        titleSelector: 'a.title',
+        linkSelector: 'a.title',
+        extract: ($, element) => ({
+            title: $(element).find('a.title').text().trim(),
+            url: $(element).find('a.title').attr('href'),
+            source: '癮科技'
+        })
     }
 ];
 
@@ -99,24 +183,58 @@ async function fetchNewsFromSource(source) {
     try {
         const response = await axios.get(source.url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             },
-            timeout: 10000
+            timeout: 15000
         });
         
         const $ = cheerio.load(response.data);
         const news = [];
         
-        $(source.selector).each((index, element) => {
+        // 嘗試使用自定義選擇器
+        let elements = $(source.selector);
+        
+        // 如果找不到元素，嘗試通用選擇器
+        if (elements.length === 0) {
+            elements = $('article, .post, .article, .news-item');
+        }
+        
+        elements.each((index, element) => {
             if (index >= 5) return; // 每個來源最多取 5 則
             
             try {
-                const item = source.extract($, element);
-                if (item.title && item.url && !item.url.includes('undefined')) {
+                let title = '';
+                let url = '';
+                
+                // 嘗試使用自定義選擇器
+                if (source.titleSelector) {
+                    const titleEl = $(element).find(source.titleSelector);
+                    title = titleEl.text().trim() || titleEl.attr('title') || '';
+                    url = titleEl.attr('href') || '';
+                } else {
+                    // 通用解析
+                    const linkEl = $(element).find('a[href]').first();
+                    title = $(element).text().trim().substring(0, 100);
+                    url = linkEl.attr('href') || '';
+                }
+                
+                // 補全 URL
+                if (url && !url.startsWith('http')) {
+                    const urlObj = new URL(source.url);
+                    url = urlObj.origin + url;
+                }
+                
+                // 過濾條件
+                if (title && title.length > 10 && url && url.startsWith('http')) {
                     // 過濾重複標題
-                    const isDuplicate = news.some(n => n.title === item.title);
+                    const isDuplicate = news.some(n => 
+                        n.title === title || 
+                        (Math.abs(n.title.length - title.length) < 5 && n.title.includes(title))
+                    );
                     if (!isDuplicate) {
-                        news.push(item);
+                        news.push({ title, url, source: source.name });
                     }
                 }
             } catch (err) {
@@ -124,10 +242,10 @@ async function fetchNewsFromSource(source) {
             }
         });
         
-        console.log(`✅ ${source.name}: 取得 ${news.length} 則新聞`);
+        console.log(`✅ ${source.name}: ${news.length} 則`);
         return news;
     } catch (err) {
-        console.log(`⚠️ ${source.name}: 爬取失敗 - ${err.message}`);
+        console.log(`⚠️ ${source.name}: 失敗 - ${err.message.substring(0, 50)}`);
         return [];
     }
 }
@@ -140,9 +258,11 @@ async function fetchAllNews() {
     for (const source of NEWS_SOURCES) {
         const news = await fetchNewsFromSource(source);
         allNews.push(...news);
+        // 避免請求過快
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
-    console.log(`📰 共取得 ${allNews.length} 則新聞`);
+    console.log(`📰 共 ${allNews.length} 則新聞`);
     return allNews;
 }
 
@@ -152,7 +272,7 @@ function formatNewsMessage(newsList) {
         return '❌ 今日沒有取得任何資安新聞';
     }
     
-    let message = `🔒 <b>每日資安新聞</b> (${newsList.length} 則)\n`;
+    let message = `🔒 <b>Daily Security News</b>\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     
     // 按來源分組
@@ -164,12 +284,11 @@ function formatNewsMessage(newsList) {
         grouped[news.source].push(news);
     });
     
-    // 輸出各來源新聞
     for (const [source, news] of Object.entries(grouped)) {
         message += `📰 <b>${source}</b>\n`;
         news.forEach((item, index) => {
-            const shortTitle = item.title.length > 50 
-                ? item.title.substring(0, 50) + '...' 
+            const shortTitle = item.title.length > 60 
+                ? item.title.substring(0, 60) + '...' 
                 : item.title;
             message += `${index + 1}. ${shortTitle}\n`;
             message += `   🔗 ${item.url}\n\n`;
@@ -177,7 +296,7 @@ function formatNewsMessage(newsList) {
     }
     
     message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `🕐 更新時間: ${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`;
+    message += `🕐 ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} EST`;
     
     return message;
 }
@@ -185,7 +304,7 @@ function formatNewsMessage(newsList) {
 // 發送 Telegram 通知
 async function sendTelegramNews(newsList) {
     if (!telegramBot || !chatId) {
-        console.log('⚠️ Telegram 未設定，無法發送通知');
+        console.log('⚠️ Telegram 未設定');
         return false;
     }
     
@@ -201,29 +320,31 @@ async function sendTelegramNews(newsList) {
     }
 }
 
-// 主函數：取得新聞並發送
+// 主函數
 async function fetchAndSendNews() {
     const news = await fetchAllNews();
-    await sendTelegramNews(news);
+    if (news.length > 0) {
+        await sendTelegramNews(news);
+    }
     return news;
 }
 
-// 測試模式：直接執行
+// 測試模式
 if (require.main === module) {
-    console.log('🧪 測試模式：手動執行新聞爬取');
+    console.log('🧪 測試模式');
     fetchAndSendNews().then(news => {
-        console.log(`📊 共取得 ${news.length} 則新聞`);
+        console.log(`\n📊 共 ${news.length} 則新聞`);
     }).catch(err => {
         console.error('❌ 錯誤:', err.message);
         process.exit(1);
     });
 }
 
-// 排程：每天早上 8 點執行
+// 排程：每天早上 8:00（美國時間）
 cron.schedule('0 8 * * *', () => {
-    console.log('⏰ 排程觸發：每日資安新聞');
+    console.log('\n⏰ 排程觸發');
     fetchAndSendNews();
 });
 
-console.log('🔒 資安新聞訂閱機器人已啟動');
-console.log('📅 排程：每天早上 8:00 自動發送資安新聞');
+console.log('🔒 資安新聞機器人已啟動');
+console.log('📅 排程：每天 8:00 AM EST');
