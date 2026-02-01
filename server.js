@@ -51,7 +51,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'Krebs on Security'
         })
     },
@@ -61,7 +61,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'Dark Reading'
         })
     },
@@ -71,7 +71,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'The Hacker News'
         })
     },
@@ -81,7 +81,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'Threatpost'
         })
     },
@@ -91,7 +91,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'BleepingComputer'
         })
     },
@@ -101,7 +101,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'SecurityWeek'
         })
     },
@@ -112,7 +112,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'iThome'
         })
     },
@@ -122,7 +122,7 @@ const NEWS_SOURCES = [
         isRss: true,
         extract: (item) => ({
             title: item.title,
-            url: item.link,
+            link: item.link,
             source: 'T 客邦'
         })
     }
