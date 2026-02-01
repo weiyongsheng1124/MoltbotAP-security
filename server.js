@@ -137,14 +137,24 @@ function parseRSS(xmlData) {
         
         for (const item of items) {
             const titleMatch = item.match(/<title[^>]*>([^<]+)<\/title>/i);
-            const linkMatch = item.match(/<link[^>]*>([^<]+)<\/link>/i) || item.match(/<link[^>]*href="([^"]+)"[^>]*>/i);
-            const descMatch = item.match(/<description[^>]*>([^<]+)<\/description>/i);
+            
+            // 多種 link 格式的解析
+            let linkMatch = item.match(/<link[^>]*>([^<]+)<\/link>/i);
+            if (!linkMatch) {
+                linkMatch = item.match(/<link[^>]*href="([^"]+)"[^>]*>/i);
+            }
+            if (!linkMatch) {
+                linkMatch = item.match(/<link[^>]*href='([^']+)'[^>]*>/i);
+            }
             
             if (titleMatch && linkMatch) {
                 let title = titleMatch[1].trim();
                 let url = linkMatch[1].trim();
                 
-                // 過濾無效標題
+                // 除錯用
+                if (!url) console.log('URL 為空:', item.substring(0, 200));
+                
+                // 過濾無效標題和 URL
                 if (title && title.length > 10 && title !== 'undefined' && url && url.startsWith('http')) {
                     news.push({ title, url });
                 }
