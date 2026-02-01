@@ -204,6 +204,81 @@ async function fetchAllNews() {
     return allNews;
 }
 
+// 抓取 CISA 漏洞通報（最新 5 個）
+async function fetchCVEs() {
+    try {
+        console.log('🔍 抓取 CISA 漏洞通報...');
+        const response = await axios.get('https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', {
+            headers,
+            timeout: 30000
+        });
+        
+        const data = response.data;
+        const cves = data.vulnerabilities || [];
+        
+        // 取最新 5 個（按 dateAdded 排序）
+        const recentCVEs = cves
+            .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
+            .slice(0, 5)
+            .map(item => ({
+                cve: item.cveID,
+                product: item.vendorProject,
+                description: item.vulnerabilityName,
+                dateAdded: item.dateAdded,
+                dueDate: item.dueDate,
+                link: `https://www.cve.org/CVERecord?id=${item.cveID}`
+            }));
+        
+        console.log(`✅ CISA: ${recentCVEs.length} 個最新漏洞`);
+        return recentCVEs;
+    } catch (err) {
+        console.log(`⚠️ CISA 抓取失敗: ${err.message.substring(0, 50)}`);
+        return [];
+    }
+}
+
+// 格式化 CVE 訊息
+function formatCVEMessage(cveList) {
+    if (cveList.length === 0) {
+        return null;
+    }
+    
+    let message = `🔐 <b>CISA 資安漏洞通報</b>\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    cveList.forEach((cve, index) => {
+        const shortDesc = cve.description.length > 80 
+            ? cve.description.substring(0, 80) + '...' 
+            : cve.description;
+        message += `<b>${cve.cve}</b> - ${cve.product}\n`;
+        message += `${index + 1}. ${shortDesc}\n`;
+        message += `📅 ${cve.dateAdded} | 🔗 <a href="${cve.link}">詳細資料</a>\n\n`;
+    });
+    
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🕐 ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} EST`;
+    
+    return message;
+}
+
+// 發送 CVE 通知
+async function sendTelegramCVEs(cveList) {
+    if (!telegramBot || !chatId || cveList.length === 0) {
+        return false;
+    }
+    
+    const message = formatCVEMessage(cveList);
+    
+    try {
+        await telegramBot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+        console.log('✅ CISA 漏洞通知已發送');
+        return true;
+    } catch (err) {
+        console.log(`⚠️ CVE Telegram 發送失敗: ${err.message}`);
+        return false;
+    }
+}
+
 // 格式化 Telegram 訊息
 function formatNewsMessage(newsList) {
     if (newsList.length === 0) {
@@ -261,17 +336,23 @@ async function sendTelegramNews(newsList) {
 // 主函數
 async function fetchAndSendNews() {
     const news = await fetchAllNews();
+    const cves = await fetchCVEs();
+    
     if (news.length > 0) {
         await sendTelegramNews(news);
     }
-    return news;
+    if (cves.length > 0) {
+        await sendTelegramCVEs(cves);
+    }
+    
+    return { news, cves };
 }
 
 // 測試模式
 if (require.main === module) {
     console.log('🧪 測試模式\n');
-    fetchAndSendNews().then(news => {
-        console.log(`\n📊 共 ${news.length} 則新聞`);
+    fetchAndSendNews().then(result => {
+        console.log(`\n📊 新聞: ${result.news.length} 則 | CVE: ${result.cves.length} 個`);
     }).catch(err => {
         console.error('❌ 錯誤:', err.message);
         process.exit(1);
