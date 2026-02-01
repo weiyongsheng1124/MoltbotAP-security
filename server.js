@@ -149,14 +149,11 @@ function parseRSS(xmlData) {
             
             if (titleMatch && linkMatch) {
                 let title = titleMatch[1].trim();
-                let url = linkMatch[1].trim();
+                let link = linkMatch[1].trim();
                 
-                // 除錯用
-                if (!url) console.log('URL 為空:', item.substring(0, 200));
-                
-                // 過濾無效標題和 URL
-                if (title && title.length > 10 && title !== 'undefined' && url && url.startsWith('http')) {
-                    news.push({ title, url });
+                // 過濾無效標題和 link
+                if (title && title.length > 10 && title !== 'undefined' && link && link.startsWith('http')) {
+                    news.push({ title, link });
                 }
             }
         }
@@ -232,7 +229,7 @@ function formatNewsMessage(newsList) {
                 ? item.title.substring(0, 60) + '...' 
                 : item.title;
             message += `${index + 1}. ${shortTitle}\n`;
-            message += `   🔗 <a href="${item.url}">${item.url}</a>\n\n`;
+            message += `   🔗 <a href="${item.link}">${item.link}</a>\n\n`;
         });
     }
     
