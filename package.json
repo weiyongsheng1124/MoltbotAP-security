@@ -1,0 +1,16 @@
+{
+    "name": "security-news",
+    "version": "1.0.0",
+    "description": "每日資安新聞訂閱機器人",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node server.js"
+    },
+    "dependencies": {
+        "axios": "^1.13.4",
+        "cheerio": "^1.0.0-rc.12",
+        "node-cron": "^3.0.3",
+        "node-telegram-bot-api": "^0.66.0"
+    }
+}
