@@ -1,5 +1,4 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
 const cron = require('node-cron');
 const TelegramBot = require('node-telegram-bot-api');
 
@@ -28,224 +27,156 @@ function initTelegramBot() {
 
 initTelegramBot();
 
-// 資安新聞來源
+// 模擬瀏覽器請求頭
+const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Cache-Control': 'max-age=0'
+};
+
+// 資安新聞來源（RSS feed 更穩定）
 const NEWS_SOURCES = [
-    // 英文來源
-    {
-        name: 'Dark Reading',
-        url: 'https://www.darkreading.com/',
-        selector: '.dr-article-card',
-        titleSelector: 'a.dr-article-card__title',
-        linkSelector: 'a.dr-article-card__title',
-        extract: ($, element) => ({
-            title: $(element).text().trim(),
-            url: 'https://www.darkreading.com' + $(element).attr('href'),
-            source: 'Dark Reading'
-        })
-    },
+    // RSS Feeds（最可靠）
     {
         name: 'Krebs on Security',
-        url: 'https://krebsonsecurity.com/',
-        selector: '.post',
-        titleSelector: 'h2 a',
-        linkSelector: 'h2 a',
-        extract: ($, element) => ({
-            title: $(element).find('h2 a').text().trim(),
-            url: $(element).find('h2 a').attr('href'),
+        url: 'https://krebsonsecurity.com/feed/',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
             source: 'Krebs on Security'
         })
     },
     {
+        name: 'Dark Reading',
+        url: 'https://www.darkreading.com/rss',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
+            source: 'Dark Reading'
+        })
+    },
+    {
+        name: 'The Hacker News',
+        url: 'https://feeds.feedburner.com/TheHackersNews',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
+            source: 'The Hacker News'
+        })
+    },
+    {
         name: 'Threatpost',
-        url: 'https://threatpost.com/',
-        selector: '.article-card',
-        titleSelector: 'h3 a',
-        linkSelector: 'h3 a',
-        extract: ($, element) => ({
-            title: $(element).find('h3 a').text().trim(),
-            url: $(element).find('h3 a').attr('href'),
+        url: 'https://threatpost.com/feed/',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
             source: 'Threatpost'
         })
     },
     {
         name: 'BleepingComputer',
-        url: 'https://www.bleepingcomputer.com/',
-        selector: '.bc_latest_news .news_li',
-        titleSelector: 'a',
-        linkSelector: 'a',
-        extract: ($, element) => ({
-            title: $(element).find('a').text().trim(),
-            url: 'https://www.bleepingcomputer.com' + $(element).find('a').attr('href'),
+        url: 'https://www.bleepingcomputer.com/feed/',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
             source: 'BleepingComputer'
         })
     },
     {
-        name: 'The Hacker News',
-        url: 'https://thehackernews.com/',
-        selector: '.home-post',
-        titleSelector: 'h2.title a',
-        linkSelector: 'h2.title a',
-        extract: ($, element) => ({
-            title: $(element).find('h2.title a').text().trim(),
-            url: $(element).find('h2.title a').attr('href'),
-            source: 'The Hacker News'
-        })
-    },
-    {
         name: 'SecurityWeek',
-        url: 'https://www.securityweek.com/',
-        selector: '.view-content .views-row',
-        titleSelector: 'h2 a',
-        linkSelector: 'h2 a',
-        extract: ($, element) => ({
-            title: $(element).find('h2 a').text().trim(),
-            url: $(element).find('h2 a').attr('href'),
+        url: 'https://www.securityweek.com/rss.xml',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
             source: 'SecurityWeek'
         })
     },
-    {
-        name: 'CSO Online',
-        url: 'https://www.csoonline.com/news/security/',
-        selector: '.river-well .card',
-        titleSelector: 'a',
-        linkSelector: 'a',
-        extract: ($, element) => ({
-            title: $(element).find('a').attr('title') || $(element).find('a').text().trim(),
-            url: $(element).find('a').attr('href'),
-            source: 'CSO Online'
-        })
-    },
-    {
-        name: 'ZDNet',
-        url: 'https://www.zdnet.com/topic/security/',
-        selector: '.topic-content .item',
-        titleSelector: 'h3 a',
-        linkSelector: 'h3 a',
-        extract: ($, element) => ({
-            title: $(element).find('h3 a').text().trim(),
-            url: $(element).find('h3 a').attr('href'),
-            source: 'ZDNet'
-        })
-    },
-    // 中文來源
+    // 中文來源（使用 RSS）
     {
         name: 'iThome',
-        url: 'https://www.ithome.com.tw/',
-        selector: '.news-list .news-item',
-        titleSelector: 'h3 a',
-        linkSelector: 'h3 a',
-        extract: ($, element) => ({
-            title: $(element).find('h3 a').text().trim(),
-            url: 'https://www.ithome.com.tw' + $(element).find('h3 a').attr('href'),
+        url: 'https://www.ithome.com.tw/rss',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
             source: 'iThome'
         })
     },
     {
-        name: 'iThome 資安',
-        url: 'https://www.ithome.com.tw/category/security',
-        selector: '.news-list .news-item',
-        titleSelector: 'h3 a',
-        linkSelector: 'h3 a',
-        extract: ($, element) => ({
-            title: $(element).find('h3 a').text().trim(),
-            url: 'https://www.ithome.com.tw' + $(element).find('h3 a').attr('href'),
-            source: 'iThome 資安'
-        })
-    },
-    {
         name: 'T 客邦',
-        url: 'https://www.techbang.com/categories/security',
-        selector: '.main-list .post',
-        titleSelector: 'h2 a',
-        linkSelector: 'h2 a',
-        extract: ($, element) => ({
-            title: $(element).find('h2 a').text().trim(),
-            url: $(element).find('h2 a').attr('href'),
+        url: 'https://www.techbang.com/rss/categories/security',
+        isRss: true,
+        extract: (item) => ({
+            title: item.title,
+            url: item.link,
             source: 'T 客邦'
-        })
-    },
-    {
-        name: '癮科技',
-        url: 'https://www.cool3c.com/category/security',
-        selector: '.article-list .article',
-        titleSelector: 'a.title',
-        linkSelector: 'a.title',
-        extract: ($, element) => ({
-            title: $(element).find('a.title').text().trim(),
-            url: $(element).find('a.title').attr('href'),
-            source: '癮科技'
         })
     }
 ];
+
+// 解析 RSS
+function parseRSS(xmlData) {
+    const news = [];
+    try {
+        // 簡單的 XML 解析
+        const items = xmlData.match(/<item[^>]*>[\s\S]*?<\/item>/gi) || [];
+        
+        for (const item of items) {
+            const titleMatch = item.match(/<title[^>]*>([^<]+)<\/title>/i);
+            const linkMatch = item.match(/<link[^>]*>([^<]+)<\/link>/i) || item.match(/<link[^>]*href="([^"]+)"[^>]*>/i);
+            const descMatch = item.match(/<description[^>]*>([^<]+)<\/description>/i);
+            
+            if (titleMatch && linkMatch) {
+                let title = titleMatch[1].trim();
+                let url = linkMatch[1].trim();
+                
+                // 過濾無效標題
+                if (title && title.length > 10 && title !== 'undefined' && url && url.startsWith('http')) {
+                    news.push({ title, url });
+                }
+            }
+        }
+    } catch (err) {
+        console.log(`解析錯誤: ${err.message}`);
+    }
+    return news;
+}
 
 // 爬取單一來源的新聞
 async function fetchNewsFromSource(source) {
     try {
         const response = await axios.get(source.url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-            },
+            headers,
             timeout: 15000
         });
         
-        const $ = cheerio.load(response.data);
-        const news = [];
+        let news = [];
         
-        // 嘗試使用自定義選擇器
-        let elements = $(source.selector);
-        
-        // 如果找不到元素，嘗試通用選擇器
-        if (elements.length === 0) {
-            elements = $('article, .post, .article, .news-item');
+        if (source.isRss) {
+            news = parseRSS(response.data);
         }
         
-        elements.each((index, element) => {
-            if (index >= 5) return; // 每個來源最多取 5 則
-            
-            try {
-                let title = '';
-                let url = '';
-                
-                // 嘗試使用自定義選擇器
-                if (source.titleSelector) {
-                    const titleEl = $(element).find(source.titleSelector);
-                    title = titleEl.text().trim() || titleEl.attr('title') || '';
-                    url = titleEl.attr('href') || '';
-                } else {
-                    // 通用解析
-                    const linkEl = $(element).find('a[href]').first();
-                    title = $(element).text().trim().substring(0, 100);
-                    url = linkEl.attr('href') || '';
-                }
-                
-                // 補全 URL
-                if (url && !url.startsWith('http')) {
-                    const urlObj = new URL(source.url);
-                    url = urlObj.origin + url;
-                }
-                
-                // 過濾條件
-                if (title && title.length > 10 && url && url.startsWith('http')) {
-                    // 過濾重複標題
-                    const isDuplicate = news.some(n => 
-                        n.title === title || 
-                        (Math.abs(n.title.length - title.length) < 5 && n.title.includes(title))
-                    );
-                    if (!isDuplicate) {
-                        news.push({ title, url, source: source.name });
-                    }
-                }
-            } catch (err) {
-                // 略過解析錯誤
-            }
-        });
+        // 最多取 5 則
+        news = news.slice(0, 5).map(item => source.extract(item));
         
         console.log(`✅ ${source.name}: ${news.length} 則`);
         return news;
     } catch (err) {
-        console.log(`⚠️ ${source.name}: 失敗 - ${err.message.substring(0, 50)}`);
+        console.log(`⚠️ ${source.name}: 失敗 - ${err.message.substring(0, 40)}`);
         return [];
     }
 }
@@ -259,7 +190,7 @@ async function fetchAllNews() {
         const news = await fetchNewsFromSource(source);
         allNews.push(...news);
         // 避免請求過快
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     console.log(`📰 共 ${allNews.length} 則新聞`);
@@ -331,7 +262,7 @@ async function fetchAndSendNews() {
 
 // 測試模式
 if (require.main === module) {
-    console.log('🧪 測試模式');
+    console.log('🧪 測試模式\n');
     fetchAndSendNews().then(news => {
         console.log(`\n📊 共 ${news.length} 則新聞`);
     }).catch(err => {
@@ -347,4 +278,4 @@ cron.schedule('0 8 * * *', () => {
 });
 
 console.log('🔒 資安新聞機器人已啟動');
-console.log('📅 排程：每天 8:00 AM EST');
+console.log('📅 排程：每天 8:00 AM EST\n');
