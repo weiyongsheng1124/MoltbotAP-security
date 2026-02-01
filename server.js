@@ -222,7 +222,7 @@ function formatNewsMessage(newsList) {
                 ? item.title.substring(0, 60) + '...' 
                 : item.title;
             message += `${index + 1}. ${shortTitle}\n`;
-            message += `   🔗 ${item.url}\n\n`;
+            message += `   🔗 <a href="${item.url}">${item.url}</a>\n\n`;
         });
     }
     
