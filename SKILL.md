@@ -103,12 +103,22 @@ security-news/
 
 ### 屬性名稱統一
 - ❌ **錯誤**：混用 `item.url` 和 `item.link`
-- ✅ **正確**：RSS 解析統一用 `item.link`，訊息格式化也用 `item.link`
+- ✅ **正確**：RSS 解析 → `parseRSS` → 物件用 `link`
+- ✅ **正確**：`extract` 函數必須回傳 `link: item.link`
+- ✅ **正確**：`formatNewsMessage` 使用 `item.link`
+
+### 常見 Bug
+- `extract` 回傳 `{ url: item.link }` 但 `formatNewsMessage` 用 `item.link` → undefined
+- 修復：統一改成 `link: item.link`
 
 ```javascript
-// 正確範例
-const message = '🔗 <a href="' + item.link + '">' + item.link + '</a>';
+// extract 正確範例
+extract: (item) => ({
+    title: item.title,
+    link: item.link,  // 不是 url!
+    source: 'News Source'
+});
 
-// 錯誤範例（不要用）
-const message = '🔗 ' + item.url; // undefined
+// formatNewsMessage 正確範例
+message += '🔗 <a href="' + item.link + '">' + item.link + '</a>';
 ```
