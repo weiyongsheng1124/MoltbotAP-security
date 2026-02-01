@@ -92,3 +92,19 @@ security-news/
 - **cheerio** - HTML 解析
 - **node-cron** - 排程任務
 - **node-telegram-bot-api** - Telegram 通知
+
+---
+
+## 📌 Telegram 格式注意
+
+### 連結語法
+- ❌ **錯誤**：markdown 語法 `[文字](網址)` → 會顯示為 undefined
+- ✅ **正確**：HTML 標籤 `<a href="網址">文字</a>`
+
+```javascript
+// 正確範例
+const message = '資料來源：<a href="https://cisa.gov">CISA</a>';
+
+// 錯誤範例（不要用）
+const message = '資料來源：[CISA](https://cisa.gov)';
+```
