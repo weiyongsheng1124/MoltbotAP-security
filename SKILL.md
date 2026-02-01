@@ -99,12 +99,16 @@ security-news/
 
 ### 連結語法
 - ❌ **錯誤**：markdown 語法 `[文字](網址)` → 會顯示為 undefined
-- ✅ **正確**：HTML 標籤 `<a href="網址">文字</a>`
+- ✅ **正確**：HTML 標籤 `<a href="網址">網址</a>`
+
+### 屬性名稱統一
+- ❌ **錯誤**：混用 `item.url` 和 `item.link`
+- ✅ **正確**：RSS 解析統一用 `item.link`，訊息格式化也用 `item.link`
 
 ```javascript
 // 正確範例
-const message = '資料來源：<a href="https://cisa.gov">CISA</a>';
+const message = '🔗 <a href="' + item.link + '">' + item.link + '</a>';
 
 // 錯誤範例（不要用）
-const message = '資料來源：[CISA](https://cisa.gov)';
+const message = '🔗 ' + item.url; // undefined
 ```
