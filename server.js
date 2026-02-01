@@ -2,8 +2,8 @@ const axios = require('axios');
 const cron = require('node-cron');
 const TelegramBot = require('node-telegram-bot-api');
 
-// 設定美國時區
-process.env.TZ = 'America/New_York';
+// 設定台灣時區
+process.env.TZ = 'Asia/Taipei';
 
 // 初始化 Telegram Bot
 let telegramBot = null;
@@ -359,11 +359,11 @@ if (require.main === module) {
     });
 }
 
-// 排程：每天早上 8:00（美國時間）
-cron.schedule('0 8 * * *', () => {
+// 排程：每天早上 8:30（台灣時間）
+cron.schedule('30 8 * * *', () => {
     console.log('\n⏰ 排程觸發');
     fetchAndSendNews();
 });
 
 console.log('🔒 資安新聞機器人已啟動');
-console.log('📅 排程：每天 8:00 AM EST\n');
+console.log('📅 排程：每天 8:30 AM TW\n');
